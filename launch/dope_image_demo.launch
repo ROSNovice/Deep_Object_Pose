@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!--arg name="config_pose" default="$(find dope)/config/config_pose.yaml" /-->
+
+    <node name="dope" type="dope.py" pkg="dope" output="screen">
+         <!--rosparam command="load" file="$(arg config_pose)" /-->
+    </node>
+    <node name="image_read" type="image_read.py" pkg="dope" />
+
+    <node name="rviz" pkg="rviz" type="rviz" />
+</launch>

@@ -1,3 +1,4 @@
+# coding: utf-8
 # Copyright (c) 2018 NVIDIA Corporation. All rights reserved.
 # This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 # https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
@@ -35,12 +36,18 @@ from scipy.ndimage.filters import gaussian_filter
 # Import the definition of the neural network model and cuboids
 from cuboid_pnp_solver import *
 
-#global transform for image input
+#global transform for image input:Composes several transforms together
+#== https://pytorch.org/docs/stable/torchvision/transforms.html ==#
+#== https://blog.csdn.net/hao5335156/article/details/80593349 ==#
+#== https://blog.csdn.net/tfygg/article/details/73251721 ==#
+''' SyntaxError: Non-ASCII character ‘\xef’ in file :
+    https://bruceyo2011.wordpress.com/2016/04/24/python-syntaxerror-non-ascii-character-xef/
+'''
 transform = transforms.Compose([
     # transforms.Scale(IMAGE_SIZE),
     # transforms.CenterCrop((imagesize,imagesize)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    transforms.ToTensor(),     # range [0, 255] -> [0.0,1.0]
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),  # channel=（channel-mean）/ std --> [0.0,1.0] -> [-1.0,1.0]
     ])
 
 
@@ -54,16 +61,25 @@ class DopeNetwork(nn.Module):
             numAffinity=16,
             stop_at_stage=6  # number of stages to process (if less than total number of stages)
         ):
-        super(DopeNetwork, self).__init__()
 
+        #== https://blog.csdn.net/shiheyingzhe/article/details/83051471 ==#
+        super(DopeNetwork, self).__init__()
         self.stop_at_stage = stop_at_stage
 
+        # form torchvision.models load vgg19's architecture
+        #== https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py ==# 
         vgg_full = models.vgg19(pretrained=False).features
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.Sequential ==#
         self.vgg = nn.Sequential()
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.Module.add_module ==#
+        #== https://blog.csdn.net/missayaaa/article/details/80251823 ==#
         for i_layer in range(24):
             self.vgg.add_module(str(i_layer), vgg_full[i_layer])
 
         # Add some layers
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.ReLU ==#
+        #== nn.ReLU(inplace=True):https://discuss.pytorch.org/t/whats-the-difference-between-nn-relu-and-nn-relu-inplace-true/948 ==#
+        #== about activation function: https://www.zhihu.com/question/22334626 ==#
         i_layer = 23
         self.vgg.add_module(str(i_layer), nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1))
         self.vgg.add_module(str(i_layer+1), nn.ReLU(inplace=True))
@@ -111,6 +127,7 @@ class DopeNetwork(nn.Module):
             return [out1_2],\
                    [out1_1]
 
+        #== https://pytorch.org/docs/stable/torch.html#torch.cat ==#
         out2 = torch.cat([out1_2, out1_1, out1], 1)
         out2_2 = self.m2_2(out2)
         out2_1 = self.m2_1(out2)
@@ -149,7 +166,9 @@ class DopeNetwork(nn.Module):
 
         return [out1_2, out2_2, out3_2, out4_2, out5_2, out6_2],\
                [out1_1, out2_1, out3_1, out4_1, out5_1, out6_1]
-                        
+
+    #== detector @: http://python.jobbole.com/85056/   https://www.jianshu.com/p/963d15bf86a1 ==#  
+    #== https://stackoverflow.com/questions/136097/what-is-the-difference-between-staticmethod-and-classmethod ==#               
     @staticmethod
     def create_stage(in_channels, out_channels, first=False):
         '''Create the neural network layers for a single stage.'''

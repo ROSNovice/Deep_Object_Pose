@@ -250,7 +250,9 @@ def run_dope_node(params, freq=5):
 if __name__ == "__main__":
     '''Main routine to run DOPE'''
 
-    if len(sys.argv) > 1:
+    #print(sys.argv)
+
+    if len(sys.argv) > 3:
         config_name = sys.argv[1]
     else:
         config_name = "config_pose.yaml"

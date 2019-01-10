@@ -1,3 +1,4 @@
+# coding: utf-8
 # Copyright (c) 2018 NVIDIA Corporation. All rights reserved.
 # This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 # https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
@@ -92,6 +93,8 @@ import colorsys,math
 
 import warnings
 warnings.filterwarnings("ignore")
+#== https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001431925324119bac1bc7979664b4fa9843c0e5fcdcf1e000 ==#
+#== https://www.cnblogs.com/darkknightzh/p/6591923.html ==#
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3,4,5,6,7"
 
 
@@ -107,16 +110,24 @@ class DopeNetwork(nn.Module):
             numAffinity=16,
             stop_at_stage=6  # number of stages to process (if less than total number of stages)
         ):
+        #== https://blog.csdn.net/shiheyingzhe/article/details/83051471 ==#
         super(DopeNetwork, self).__init__()
 
         self.stop_at_stage = stop_at_stage
 
+        #== https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py ==# 
         vgg_full = models.vgg19(pretrained=False).features
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.Sequential ==#
         self.vgg = nn.Sequential()
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.Module.add_module ==#
+        #== https://blog.csdn.net/missayaaa/article/details/80251823 ==#
         for i_layer in range(24):
             self.vgg.add_module(str(i_layer), vgg_full[i_layer])
 
         # Add some layers
+        #== https://pytorch.org/docs/stable/nn.html#torch.nn.ReLU ==#
+        #== nn.ReLU(inplace=True):https://discuss.pytorch.org/t/whats-the-difference-between-nn-relu-and-nn-relu-inplace-true/948 ==#
+        #== about activation function: https://www.zhihu.com/question/22334626 ==#
         i_layer = 23
         self.vgg.add_module(str(i_layer), nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1))
         self.vgg.add_module(str(i_layer+1), nn.ReLU(inplace=True))
@@ -163,7 +174,7 @@ class DopeNetwork(nn.Module):
         if self.stop_at_stage == 1:
             return [out1_2],\
                    [out1_1]
-
+        #== https://pytorch.org/docs/stable/torch.html#torch.cat ==#
         out2 = torch.cat([out1_2, out1_1, out1], 1)
         out2_2 = self.m2_2(out2)
         out2_1 = self.m2_1(out2)
@@ -202,7 +213,9 @@ class DopeNetwork(nn.Module):
 
         return [out1_2, out2_2, out3_2, out4_2, out5_2, out6_2],\
                [out1_1, out2_1, out3_1, out4_1, out5_1, out6_1]
-                        
+
+    #== detector @: http://python.jobbole.com/85056/   https://www.jianshu.com/p/963d15bf86a1 ==#  
+    #== https://stackoverflow.com/questions/136097/what-is-the-difference-between-staticmethod-and-classmethod ==#                        
     @staticmethod
     def create_stage(in_channels, out_channels, first=False):
         '''Create the neural network layers for a single stage.'''
@@ -258,12 +271,12 @@ class DopeNetwork(nn.Module):
 
         return model
 
-
-
 ##################################################
 # UTILS CODE FOR LOADING THE DATA
 ##################################################
 
+#== PIL:http://effbot.org/imagingbook/introduction.htm#filters ==#
+#== http://effbot.org/imagingbook/image.htm ==#
 def default_loader(path):
     return Image.open(path).convert('RGB')          
 
@@ -272,6 +285,8 @@ def loadjson(path, objectsofinterest, img):
     Loads the data from a json file. 
     If there are no objects of interest, then load all the objects. 
     """
+
+#== with...as: https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001431917715991ef1ebc19d15a4afdace1169a464eecc2000 ==#
     with open(path) as data_file:    
         data = json.load(data_file)
     # print (path)
@@ -286,6 +301,22 @@ def loadjson(path, objectsofinterest, img):
     translations = []
     rotations = []
     points = []
+###########################################################################################
+    """
+    Each annotation file includes:
+    - XYZ position and orientation of the camera in the world coordinate frame (`camera_data`)
+    - for each object,
+    - class name (`class`)
+    - visibility, defined as the percentage of the object that is not occluded (`visibility`).  (0 means fully occluded whereas 1 means fully visible)
+    - XYZ position (in centimeters) and orientation (`location` and `quaternion_xyzw`)
+    - 4x4 transformation (redundant, can be computed from previous) (`pose_transform_permuted`)
+    - 3D position of the centroid of the bounding cuboid (in centimeters) (`cuboid_centroid`)
+    - 2D projection of the previous onto the image (in pixels) (`projected_cuboid_centroid`)
+    - 2D bounding box of the object in the image (in pixels) (`bounding_box`)
+    - 3D coordinates of the vertices of the 3D bounding cuboid (in centimeters) (`cuboid`)
+    - 2D coordinates of the projection of the above (in pixels (`projected_cuboid`) 
+    """
+###########################################################################################
 
     for i_line in range(len(data['objects'])):
         info = data['objects'][i_line]
@@ -314,7 +345,6 @@ def loadjson(path, objectsofinterest, img):
         for p in pointdata:
             points3d.append((p[0],p[1]))
 
-        # Get the centroids
         pcenter = info['projected_cuboid_centroid']
 
         points3d.append ((pcenter[0],pcenter[1]))
@@ -346,11 +376,14 @@ def loadimages(root):
     """
     imgs = []
 
+    #== https://docs.python.org/3/library/os.path.html ==#
+    #== RGB images (`XXXXXX.left.jpg`, `XXXXXX.right.jpg`) ==#
+    #== annotation files (`XXXXXX.left.json`, `XXXXXX.right.json`) ==#
     def add_json_files(path,):
-        for imgpath in glob.glob(path+"/*.png"):
-            if exists(imgpath) and exists(imgpath.replace('png',"json")):
+        for imgpath in glob.glob(path+"/*.jpg"):
+            if exists(imgpath) and exists(imgpath.replace('jpg',"json")):
                 imgs.append((imgpath,imgpath.replace(path,"").replace("/",""),
-                    imgpath.replace('png',"json")))
+                    imgpath.replace('jpg',"json")))
 
     def explore(path):
         if not os.path.isdir(path):
@@ -367,6 +400,9 @@ def loadimages(root):
 
     return imgs
 
+
+#== https://pytorch.org/docs/stable/data.html ==#
+#== dataset document: https://research.nvidia.com/sites/default/files/pubs/2018-06_Falling-Things/readme_0.txt ==#
 class MultipleVertexJson(data.Dataset):
     """
     Dataloader for the data generated by NDDS (https://github.com/NVIDIA/Dataset_Synthesizer). 
@@ -435,7 +471,10 @@ class MultipleVertexJson(data.Dataset):
         Otherwise, during training this function returns the 
         belief maps and affinity fields and image as tensors.  
         """
+
+        #== have a look at 354: add_json_files(path,) ==#
         path, name, txt = self.imgs[index]
+        #== 269: default_loader(path) ==#
         img = self.loader(path)
 
         img_size = img.size
@@ -459,6 +498,8 @@ class MultipleVertexJson(data.Dataset):
         
         # self.save == true assumes there is only 
         # one object instance in the scene. 
+
+        #== unsqueeze: https://blog.csdn.net/jacke121/article/details/80595928 ==#
         if translations.size()[0] > 1:
             translations = translations[0].unsqueeze(0)
             rotations = rotations[0].unsqueeze(0)
@@ -481,11 +522,26 @@ class MultipleVertexJson(data.Dataset):
         matrix_camera[0,2] = cam['cx']
         matrix_camera[1,2] = cam['cy']
         matrix_camera[2,2] = 1
+#########################################################################
+    
+    # Setting files
+
+    # In each data folder containing frames (*e.g.,* `data/single/002_master_chef_can_16k/kitchen_0/`), there are two files describing the exported scene:
+    # * `_object_settings.json` includes information about the objects exported.  This includes 
+    # - the names of the exported object classes (`exported_object_classes`) 
+    # - details about the exported object classes (`exported_objects`), including
+    #     - name of the class (`class`)
+    #     - numerical class ID for semantic segmentation (`segmentation_class_id`).  For `mixed`, this number uniquely identifies the object class, but for `single`, this number is always 255, since there is just one object.
+    #     - 4x4 Euclidean transformation (`fixed_model_transform`).  This transformation is applied to the original publicly-available YCB object in order to center and align it (translation values are in centimeters) with the coordinate system (see the discussion above on the NDDS tool).  Note that this is actually the transpose of the matrix.
+    #     - dimensions of the 3D bounding cuboid along the XYZ axes (`cuboid_dimensions`)
+    # * `_camera_settings.json` includes the intrinsics of both cameras (`camera_settings`)
+
+#########################################################################
 
         # Load the cuboid sizes
-        path_set = path.replace(name,'_object_settings.json')
+        path_set = path.replace(name, '_object_settings.json')
         with open(path_set) as data_file:    
-            data = json.load(data_file)
+            data = json.load(data_file)   
 
         cuboid = torch.zeros(1)
 
@@ -498,7 +554,6 @@ class MultipleVertexJson(data.Dataset):
 
         img_original = img.copy()        
 
-        
         def Reproject(points,tm, rm):
             """
             Reprojection of points when rotating the image
@@ -510,6 +565,7 @@ class MultipleVertexJson(data.Dataset):
             tmat = np.identity(3)
             tmat[0:2] = tm
 
+            #== https://blog.csdn.net/cqk0100/article/details/76221749 ==#
             new_cuboid = np.matmul(
                 rmat, np.vstack((proj_cuboid.T, np.ones(len(points)))))
             new_cuboid = np.matmul(tmat, new_cuboid)
@@ -518,6 +574,7 @@ class MultipleVertexJson(data.Dataset):
             return new_cuboid
 
         # Random image manipulation, rotation and translation with zero padding
+        #== http://www.runoob.com/python/func-number-round.html ==#
         dx = round(np.random.normal(0, 2) * float(self.random_translation[0]))
         dy = round(np.random.normal(0, 2) * float(self.random_translation[1]))
         angle = round(np.random.normal(0, 1) * float(self.random_rotation))
@@ -538,13 +595,18 @@ class MultipleVertexJson(data.Dataset):
             new_cuboid = Reproject(points, tm, rm)
             points_keypoints[i_objects] = new_cuboid.tolist()
             points_keypoints[i_objects] = list(map(tuple, points_keypoints[i_objects]))
-                
+        
+        #== https://blog.csdn.net/on2way/article/details/46801063 ==#
         image_r = cv2.warpAffine(np.array(img), rm, img.size)
         result = cv2.warpAffine(image_r, tm, img.size)
         img = Image.fromarray(result)
 
         # Note:  All point coordinates are in the image space, e.g., pixel value.
         # This is used when we do saving --- helpful for debugging
+
+        #== https://pillow.readthedocs.io/en/3.0.x/reference/ImageDraw.html ==#
+        #== https://pillow-zh-cn.readthedocs.io/zh_CN/latest/ ==#
+        #== https://blog.csdn.net/Dou_CO/article/details/17618319 ==#
         if self.save or self.test:   
             # Use the save to debug the data
             if self.test:
@@ -634,7 +696,7 @@ class MultipleVertexJson(data.Dataset):
 
         for j in range(len(beliefsImg)):
             beliefsImg[j] = self.target_transform(beliefsImg[j])
-            # beliefsImg[j].save('{}.png'.format(j))
+            # beliefsImg[j].save('{}.jpg'.format(j))
             beliefsImg[j] = totensor(beliefsImg[j])
 
         beliefs = torch.zeros((len(beliefsImg),beliefsImg[0].size(1),beliefsImg[0].size(2)))
@@ -873,7 +935,11 @@ def crop(img, i, j, h, w):
         PIL.Image: Cropped image.
     """
     return img.crop((j, i, j + w, i + h))
-    
+## image processing ##
+## https://www.cnblogs.com/denny402/p/5124152.html ##
+## https://pillow.readthedocs.io/en/3.0.x/reference/ImageEnhance.html ##
+## https://blog.csdn.net/guduruyu/article/details/71124837 ##
+## https://pytorch-cn.readthedocs.io/zh/latest/torchvision/torchvision-transform/ ##
 class AddRandomContrast(object):
     """
     Apply some random contrast from PIL
@@ -1072,6 +1138,8 @@ def DrawCube(points, which_color = 0, color = None, draw = None):
 # TRAINING CODE MAIN STARTING HERE
 ##################################################
 
+#== https://docs.python.org/3/library/argparse.html ==#
+#== https://docs.python.org/3/howto/argparse.html#id1 ==#
 print ("start:" , datetime.datetime.now().time())
 
 conf_parser = argparse.ArgumentParser(
@@ -1178,6 +1246,8 @@ parser.add_argument('--datasize',
     help='randomly sample that number of entries in the dataset folder') 
 
 # Read the config but do not overwrite the args written 
+
+#== https://docs.python.org/3/library/argparse.html#partial-parsing ==#
 args, remaining_argv = conf_parser.parse_known_args()
 defaults = { "option":"default" }
 
@@ -1212,6 +1282,8 @@ with open (opt.outf+'/header.txt','w') as file:
         file.write("epoch, passed,total \n")
 
 # set the manual seed. 
+#== https://blog.csdn.net/jiangjiang_jian/article/details/79031788 ==#
+#== https://blog.csdn.net/VictoriaW/article/details/73920534 ==#
 random.seed(opt.manualseed)
 torch.manual_seed(opt.manualseed)
 torch.cuda.manual_seed_all(opt.manualseed)
@@ -1233,6 +1305,7 @@ else:
     noise = 0.00001
     normal_imgs = None
     transform = transforms.Compose([
+    ## https://pytorch.org/docs/stable/torchvision/transforms.html#torchvision.transforms.Resize
                            transforms.Resize(opt.imagesize),
                            transforms.ToTensor()])
 
@@ -1251,7 +1324,7 @@ if not opt.data is "":
         transform = transform,
         normal = normal_imgs,
         target_transform = transforms.Compose([
-                               transforms.Scale(opt.imagesize//8),
+                               transforms.Scale(opt.imagesize//8),  ##http://www.runoob.com/python/python-operators.html
             ]),
         )
     trainingdata = torch.utils.data.DataLoader(train_dataset,
@@ -1266,7 +1339,7 @@ if opt.save:
         images = iter(trainingdata).next()
         if normal_imgs is None:
             normal_imgs = [0,1]
-        save_image(images['img'],'{}/train_{}.png'.format( opt.outf,str(i).zfill(5)),mean=normal_imgs[0],std=normal_imgs[1])
+        save_image(images['img'],'{}/train_{}.jpg'.format( opt.outf,str(i).zfill(5)),mean=normal_imgs[0],std=normal_imgs[1])
 
         print (i)        
 
@@ -1299,6 +1372,7 @@ if not trainingdata is None:
     print('training data: {} batches'.format(len(trainingdata)))
 if not testingdata is None:
     print ("testing data: {} batches".format(len(testingdata)))
+
 print('load models')
 
 net = DopeNetwork(pretrained=opt.pretrained).cuda()
@@ -1307,6 +1381,8 @@ net = torch.nn.DataParallel(net,device_ids=opt.gpuids).cuda()
 if opt.net != '':
     net.load_state_dict(torch.load(opt.net))
 
+#== lambda: https://www.cnblogs.com/xuchunlin/p/6045285.html ==#
+#== filter: https://www.liaoxuefeng.com/wiki/0014316089557264a6b348958f449949df42a6d3a2e542c000/001431821084171d2e0f22e7cc24305ae03aa0214d0ef29000 ==#
 parameters = filter(lambda p: p.requires_grad, net.parameters())
 optimizer = optim.Adam(parameters,lr=opt.lr)
 
@@ -1319,8 +1395,11 @@ with open (opt.outf+'/loss_test.csv','w') as file:
 nb_update_network = 0
 
 def _runnetwork(epoch, loader, train=True):
+
+    #== global: https://blog.csdn.net/xtingjie/article/details/71210182 ==#
     global nb_update_network
     # net
+    #== model.train()/model.eval: https://blog.csdn.net/qq_36653505/article/details/84728489 ==#
     if train:
         net.train()
     else:
