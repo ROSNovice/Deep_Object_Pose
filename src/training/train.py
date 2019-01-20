@@ -73,6 +73,7 @@ import json
 import glob
 import os 
 import copy
+import time
 
 from PIL import Image
 from PIL import ImageFilter
@@ -116,7 +117,7 @@ class DopeNetwork(nn.Module):
         self.stop_at_stage = stop_at_stage
 
         #== https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py ==# 
-        vgg_full = models.vgg19(pretrained=False).features
+        vgg_full = models.vgg19(pretrained).features
         #== https://pytorch.org/docs/stable/nn.html#torch.nn.Sequential ==#
         self.vgg = nn.Sequential()
         #== https://pytorch.org/docs/stable/nn.html#torch.nn.Module.add_module ==#
@@ -446,8 +447,8 @@ class MultipleVertexJson(data.Dataset):
             imgs = loadimages(path)
 
             # Check all the folders in path 
-            for name in os.listdir(str(path)):
-                imgs += loadimages(path +"/"+name)
+            # for name in os.listdir(str(path)):
+            #     imgs += loadimages(path +"/"+name)
             return imgs
 
 
@@ -1264,6 +1265,8 @@ if not "/" in opt.outf:
     opt.outf = "train_{}".format(opt.outf)
 
 try:
+    # change the path that stores the training dataes
+    opt.outf = "/home/birl/Personal_datas/BIGJUN/dope/train_data/" + opt.outf
     os.makedirs(opt.outf)
 except OSError:
     pass
@@ -1347,6 +1350,9 @@ if opt.save:
     quit()
 
 testingdata = None
+
+# https://morvanzhou.github.io/tutorials/machine-learning/torch/3-05-train-on-batch/
+
 if not opt.datatest == "": 
     testingdata = torch.utils.data.DataLoader(
         MultipleVertexJson(
@@ -1404,9 +1410,11 @@ def _runnetwork(epoch, loader, train=True):
         net.train()
     else:
         net.eval()
-
+    
+    start_time = time.time()
     for batch_idx, targets in enumerate(loader):
 
+        
         data = Variable(targets['img'].cuda())
         
         output_belief, output_affinities = net(data)
@@ -1424,6 +1432,10 @@ def _runnetwork(epoch, loader, train=True):
             else:
                 loss_tmp = ((l - target_belief) * (l-target_belief)).mean()
                 loss += loss_tmp
+
+        for l in output_affinities: #output, each affinities map layers.
+            loss_tmp = ((l - target_affinity) * (l-target_affinity)).mean()
+            loss += loss_tmp
 
         if train:
             loss.backward()
@@ -1443,9 +1455,10 @@ def _runnetwork(epoch, loader, train=True):
 
         if train:
             if batch_idx % opt.loginterval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.15f}'.format(
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.15f}\tTime: {:.2f}'.format(
                     epoch, batch_idx * len(data), len(loader.dataset),
-                    100. * batch_idx / len(loader), loss.data[0]))
+                    100. * batch_idx / len(loader), loss.data[0], time.time() - start_time))
+                start_time = time.time()
         else:
             if batch_idx % opt.loginterval == 0:
                 print('Test Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.15f}'.format(
@@ -1468,7 +1481,8 @@ for epoch in range(1, opt.epochs + 1):
         if opt.data == "":
             break # lets get out of this if we are only testing
     try:
-        torch.save(net.state_dict(), '{}/net_{}_{}.pth'.format(opt.outf, opt.namefile ,epoch))
+        if (epoch % 10 == 0):
+            torch.save(net.state_dict(), '{}/net_{}_{}.pth'.format(opt.outf, opt.namefile ,epoch))
     except:
         pass
 

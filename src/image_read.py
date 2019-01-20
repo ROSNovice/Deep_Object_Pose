@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-#from __future__ import print_function
+from __future__ import print_function
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image as Image_msg
 import cv2
+import argparse
 import glob
-import sys
 import os
 import rospkg
 
-def image_read(image_list, freq = 2):
+def image_read(image_list, freq = 1):
 
     rospy.init_node('image_read', anonymous=True)
     image_out = rospy.Publisher("image_read", Image_msg, queue_size=1)
@@ -33,16 +33,20 @@ def image_read(image_list, freq = 2):
             rate.sleep()
 
 if __name__ == "__main__":
-
+    #default folder path
     rospack = rospkg.RosPack()
     package_path = rospack.get_path('dope')
     image_path = package_path + "/images/" 
-    '''
-    image_name = image_path + "000099.png"
-    if len(sys.argv) > 1:
-        image_name = image_path + sys.argv[1]
-    '''
-    image_list = sorted(glob.glob(os.path.join(image_path, '*.png')))
+    #add command line argument
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p","--path",
+        default=image_path,
+        help = "add the folder path to imamges")
+    opt, remaining_args = parser.parse_known_args()
+    # load images
+    image_list = sorted(glob.glob(os.path.join(opt.path, '*.jpg'))) + \
+                 sorted(glob.glob(os.path.join(opt.path, '*.png')))
+
     try:
         image_read(image_list)
     except rospy.ROSInterruptException as e:

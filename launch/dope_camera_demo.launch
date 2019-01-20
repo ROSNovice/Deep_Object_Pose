@@ -1,11 +1,6 @@
 <?xml version="1.0"?>
 
 <launch>
-    <!--choose to change the path of the testset -->
-    <arg   name="set_path" default="false" />
-    <arg     if="$(arg set_path)" name="image_path" value="-p /home/birl/Personal_datas/BIGJUN/dope/dataset/011_banana_16k/kitchen_0" />
-    <arg unless="$(arg set_path)" name="image_path" value="" />
-
     <!--choose to debug the dope node-->
     <arg   name="debug" default="false" />
     <arg     if="$(arg debug)" name="pdb_arg" value="xterm -e python -m pdb" />
@@ -14,7 +9,7 @@
     <node name="dope" type="dope.py" pkg="dope" output="screen" launch-prefix="$(arg pdb_arg)">
          <!--rosparam command="load" file="$(arg config_pose)" /-->
     </node>
-    <node name="image_read" type="image_read.py" pkg="dope" args="$(arg image_path)" />
+    <node name="camera" type="camera.py" pkg="dope" />
 
     <node name="rviz" pkg="rviz" type="rviz" />
 </launch>

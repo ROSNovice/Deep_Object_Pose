@@ -38,7 +38,6 @@ g_bridge = CvBridge()
 g_img = None
 g_draw = None
 
-
 ### Basic functions
 def __image_callback(msg):
     '''Image callback'''
@@ -157,18 +156,18 @@ def run_dope_node(params, freq=5):
                 Cuboid3d(params['dimensions'][model]),
                 dist_coeffs=dist_coeffs
             )
-        pubs[model] = \
-            rospy.Publisher(
-                '{}/pose_{}'.format(params['topic_publishing'], model), 
-                PoseStamped, 
-                queue_size=10
-            )
-        pub_dimension[model] = \
-            rospy.Publisher(
-                '{}/dimension_{}'.format(params['topic_publishing'], model),
-                String, 
-                queue_size=10
-            )
+        # pubs[model] = \
+        #     rospy.Publisher(
+        #         '{}/pose_{}'.format(params['topic_publishing'], model), 
+        #         PoseStamped, 
+        #         queue_size=10
+        #     )
+        # pub_dimension[model] = \
+        #     rospy.Publisher(
+        #         '{}/dimension_{}'.format(params['topic_publishing'], model),
+        #         String, 
+        #         queue_size=10
+        #     )
 
     # Start ROS publisher
     pub_rgb_dope_points = \
@@ -192,12 +191,15 @@ def run_dope_node(params, freq=5):
     print ("Running DOPE...  (Listening to camera topic: '{}')".format(topic_cam)) 
     print ("Ctrl-C to stop")
 
+    output_save_as_image = True
     while not rospy.is_shutdown():
         if g_img is not None:
             # Copy and draw image
             img_copy = g_img.copy()
             im = Image.fromarray(img_copy)
             g_draw = ImageDraw.Draw(im)
+            pub_pose = {}
+            pub_dimension = {}
 
             for m in models:
                 # Detect object
@@ -205,7 +207,9 @@ def run_dope_node(params, freq=5):
                             models[m].net, 
                             pnp_solvers[m],
                             g_img,
-                            config_detect
+                            config_detect,
+                            m,
+                            output_save_as_image
                             )
                 
                 # Publish pose and overlay cube on image
@@ -227,8 +231,24 @@ def run_dope_node(params, freq=5):
                     msg.pose.orientation.w = ori[3]
 
                     # Publish
-                    pubs[m].publish(msg)
-                    pub_dimension[m].publish(str(params['dimensions'][m]))
+                    model = m+str(i_r)
+                    pub_pose[model] = \
+                        rospy.Publisher(
+                            '{}/pose_{}'.format(params['topic_publishing'], model), 
+                            PoseStamped, 
+                            queue_size=10
+                        )
+                    pub_dimension[m] = \
+                        rospy.Publisher(
+                            '{}/dimension_{}'.format(params['topic_publishing'], m),
+                            String, 
+                            queue_size=10
+                        )
+                    if not msg.pose is None:
+                        pub_pose[model].publish(msg)
+                        pub_dimension[m].publish(str(params['dimensions'][m]))
+                    # pubs[m].publish(msg)
+                    # pub_dimension[m].publish(str(params['dimensions'][m]))
 
                     # Draw the cube
                     if None not in result['projected_points']:
@@ -238,6 +258,7 @@ def run_dope_node(params, freq=5):
                         DrawCube(points2d, draw_colors[m])
                 
             # Publish the image with results overlaid
+            output_save_as_image = False
             pub_rgb_dope_points.publish(
                 CvBridge().cv2_to_imgmsg(
                     np.array(im)[...,::-1], 

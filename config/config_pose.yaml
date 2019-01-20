@@ -1,5 +1,5 @@
-#topic_camera: "/dope/webcam_rgb_raw"
-topic_camera: "/image_read"
+topic_camera: "/dope/webcam_rgb_raw"
+#topic_camera: "/image_read"
 topic_publishing: "dope"
 frame_id: "/dope"
 
@@ -9,8 +9,9 @@ weights: {
     # "gelatin":"gelatin_60.pth",
      "meat":"meat_20.pth", 
     # "mustard":"mustard_60.pth", 
-    "soup":"soup_60.pth", 
-    #"sugar":"sugar_60.pth"
+     "soup":"soup_60.pth", 
+    # "sugar":"sugar_60.pth"
+     "banana":"banana_75.pth"
 }
 
 # Cuboid dimension in cm x,y,z
@@ -21,6 +22,7 @@ dimensions: {
     "mustard": [9.6024150848388672,19.130100250244141,5.824894905090332],
     "soup": [6.7659378051757813,10.185500144958496,6.771425724029541],
     "sugar": [9.267730712890625,17.625339508056641,4.5134143829345703],
+    "banana": [19.71739959716797, 3.8649001121520996, 7.406599998474121]
 }
 
 draw_colors: {
@@ -30,6 +32,7 @@ draw_colors: {
     "mustard": [217,12, 232],  # magenta
     "soup": [255, 101, 0],  # orange
     "sugar": [232, 222, 12],  # yellow
+    "banana": [217,12, 232],  # magenta
 }
 
 # Camera intrinsics (Logitech C920)

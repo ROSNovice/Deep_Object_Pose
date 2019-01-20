@@ -28,7 +28,7 @@ if not cap.isOpened():
     
 def publish_images(freq=5):
     rospy.init_node('dope_webcam_rgb_raw', anonymous=True)
-    images_out = rospy.Publisher(topic, Image_msg, queue_size=10)
+    images_out = rospy.Publisher(topic, Image_msg, queue_size=1)
     rate = rospy.Rate(freq)
 
     print ("Publishing images from camera {} to topic '{}'...".format(
@@ -52,4 +52,3 @@ if __name__ == "__main__":
         publish_images()
     except rospy.ROSInterruptException:
         pass
-

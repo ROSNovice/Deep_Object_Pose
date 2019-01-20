@@ -9,6 +9,11 @@ Contains the following classes:
    - ObjectDetector - Greedy algorithm to build cuboids from belief maps 
 '''
 
+#######################################################
+    # https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.ufunc.reduce.html
+    # http://www.runoob.com/python3/python3-func-zip.html
+#######################################################
+
 import time
 import json
 import os, shutil
@@ -31,10 +36,15 @@ from scipy import ndimage
 import scipy
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+# https://www.cnblogs.com/king-lps/p/6374916.html
 from scipy.ndimage.filters import gaussian_filter
 
 # Import the definition of the neural network model and cuboids
 from cuboid_pnp_solver import *
+from feature_map_visualization import *
+
+# use GPU or not
+#os.environ["CUDA_VISIBLE_DEVICES"]=" "
 
 #global transform for image input:Composes several transforms together
 #== https://pytorch.org/docs/stable/torchvision/transforms.html ==#
@@ -272,7 +282,7 @@ class ObjectDetector(object):
     '''This class contains methods for object detection'''
 
     @staticmethod
-    def detect_object_in_image(net_model, pnp_solver, in_img, config):
+    def detect_object_in_image(net_model, pnp_solver, in_img, config, object_name, output_save_as_image):
         '''Detect objects in a image using a specific trained network model'''
 
         if in_img is None:
@@ -282,6 +292,10 @@ class ObjectDetector(object):
         image_tensor = transform(in_img)
         image_torch = Variable(image_tensor).cuda().unsqueeze(0)
         out, seg = net_model(image_torch)
+        # save output as image
+        if output_save_as_image:
+            save_feature_map_to_image(out[-1], seg[-1], object_name) 
+
         vertex2 = out[-1][0]
         aff = seg[-1][0]
 
@@ -337,6 +351,7 @@ class ObjectDetector(object):
             map_down = np.zeros(map.shape)
             map_down[:,:-p] = map[:,p:]
 
+            # https://docs.scipy.org/doc/numpy-1.15.0/reference/generated/numpy.ufunc.reduce.html
             peaks_binary = np.logical_and.reduce(
                                 (
                                     map >= map_left, 
@@ -345,6 +360,7 @@ class ObjectDetector(object):
                                     map >= map_down, 
                                     map > config.thresh_map)
                                 )
+            # http://www.runoob.com/python3/python3-func-zip.html
             peaks = zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0]) 
             
             # Computing the weigthed average for localizing the peaks
