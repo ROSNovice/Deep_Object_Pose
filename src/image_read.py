@@ -10,10 +10,10 @@ import glob
 import os
 import rospkg
 
-def image_read(image_list, freq = 1):
+def image_read(image_list, freq = 10):
 
     rospy.init_node('image_read', anonymous=True)
-    image_out = rospy.Publisher("image_read", Image_msg, queue_size=1)
+    image_out = rospy.Publisher("image_read", Image_msg, queue_size=100)
     rate = rospy.Rate(freq)
 
     if image_list is None:

@@ -104,7 +104,7 @@ def DrawCube(points, color=(255, 0, 0)):
     DrawLine(points[1], points[4], color, lineWidthForDrawing)
 
 
-def run_dope_node(params, freq=5):
+def run_dope_node(params, freq=10):
     '''Starts ROS node to listen to image topic, run DOPE, and publish DOPE results'''
 
     global g_img
@@ -174,7 +174,7 @@ def run_dope_node(params, freq=5):
         rospy.Publisher(
             params['topic_publishing']+"/rgb_points", 
             ImageSensor_msg, 
-            queue_size=10
+            queue_size=100
         )
     
     # Starts ROS listener

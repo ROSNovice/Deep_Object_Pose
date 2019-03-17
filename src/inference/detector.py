@@ -293,8 +293,8 @@ class ObjectDetector(object):
         image_torch = Variable(image_tensor).cuda().unsqueeze(0)
         out, seg = net_model(image_torch)
         # save output as image
-        if output_save_as_image:
-            save_feature_map_to_image(out[-1], seg[-1], object_name) 
+        #if output_save_as_image:
+        #    save_feature_map_to_image(out[-1], seg[-1], object_name) 
 
         vertex2 = out[-1][0]
         aff = seg[-1][0]

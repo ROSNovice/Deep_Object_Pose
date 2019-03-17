@@ -9,14 +9,13 @@ It uses OpenCV to capture from camera 0.
 """
 
 from __future__ import print_function
-import rospy
-from std_msgs.msg import String
-from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image as ImageSensor
 
-from sensor_msgs.msg import Image as Image_msg
-import numpy as np
 import cv2
+import numpy as np
+import rospy
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image as Image_msg
+from std_msgs.msg import String
 
 # Global variables
 cam_index = 0  # index of camera to capture
@@ -26,9 +25,9 @@ if not cap.isOpened():
     print("ERROR:  Unable to open camera for capture.  Is camera plugged in?")
     exit(1)
     
-def publish_images(freq=5):
+def publish_images(freq=10):
     rospy.init_node('dope_webcam_rgb_raw', anonymous=True)
-    images_out = rospy.Publisher(topic, Image_msg, queue_size=1)
+    images_out = rospy.Publisher(topic, Image_msg, queue_size=100)
     rate = rospy.Rate(freq)
 
     print ("Publishing images from camera {} to topic '{}'...".format(
